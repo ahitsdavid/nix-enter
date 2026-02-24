@@ -33,6 +33,3 @@ def build_log_path(log_dir: Path) -> Path:
     return log_dir / f"build-{ts}.log"
 
 
-def session_log_path(log_dir: Path) -> Path:
-    ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
-    return log_dir / f"session-{ts}.log"

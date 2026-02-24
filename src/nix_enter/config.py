@@ -25,8 +25,6 @@ class Config:
     forward_x11: bool = True
     # [logging]
     build_logs_keep: int = 5
-    session_logs_keep: int = 10
-    session_log_limit_mb: int = 50
 
 
 DEFAULT_CONFIG = """\
@@ -55,15 +53,16 @@ x11 = true
 
 [logging]
 build_logs_keep = 5
-session_logs_keep = 10
-session_log_limit_mb = 50
 """
 
 
 def init_config(config_path: Path) -> None:
-    """Create default config.toml if it doesn't exist."""
+    """Create default config.toml and .gitignore if they don't exist."""
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(DEFAULT_CONFIG)
+    gitignore = config_path.parent / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text("logs/\n")
 
 
 def load_config(config_path: Path) -> Config:
@@ -107,9 +106,5 @@ def load_config(config_path: Path) -> Config:
         cfg.forward_x11 = forwarding["x11"]
     if "build_logs_keep" in logging:
         cfg.build_logs_keep = logging["build_logs_keep"]
-    if "session_logs_keep" in logging:
-        cfg.session_logs_keep = logging["session_logs_keep"]
-    if "session_log_limit_mb" in logging:
-        cfg.session_log_limit_mb = logging["session_log_limit_mb"]
 
     return cfg

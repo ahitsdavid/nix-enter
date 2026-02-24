@@ -31,7 +31,7 @@ class Project:
 
     @property
     def image_name(self) -> str:
-        return f"nix-enter-{self.name}:latest"
+        return f"nix-enter-{self.name}-{self.hash}:latest"
 
     @property
     def volume_home(self) -> str:

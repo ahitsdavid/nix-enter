@@ -7,7 +7,7 @@ def test_project_from_path():
     assert p.name == "myapp"
     assert len(p.hash) == 12
     assert p.container_name == f"nix-enter-myapp-{p.hash}"
-    assert p.image_name == "nix-enter-myapp:latest"
+    assert p.image_name == f"nix-enter-myapp-{p.hash}:latest"
     assert p.volume_home == f"nix-enter-home-myapp-{p.hash}"
     assert p.volume_claude == f"nix-enter-claude-myapp-{p.hash}"
 

@@ -10,8 +10,6 @@ def test_default_config():
     assert cfg.cap_drop == "all"
     assert cfg.network == "host"
     assert cfg.build_logs_keep == 5
-    assert cfg.session_logs_keep == 10
-    assert cfg.session_log_limit_mb == 50
     assert cfg.extra_mounts == []
 
 
@@ -69,3 +67,11 @@ def test_init_config_creates_file(tmp_path):
     cfg = load_config(config_path)
     assert cfg.container_user == "user"
     assert cfg.build_logs_keep == 5
+
+
+def test_init_config_creates_gitignore(tmp_path):
+    config_path = tmp_path / ".nix-enter" / "config.toml"
+    init_config(config_path)
+    gitignore = tmp_path / ".nix-enter" / ".gitignore"
+    assert gitignore.exists()
+    assert "logs/" in gitignore.read_text()

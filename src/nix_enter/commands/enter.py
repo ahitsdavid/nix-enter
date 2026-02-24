@@ -6,7 +6,7 @@ from pathlib import Path
 from nix_enter.project import Project
 from nix_enter.config import Config
 from nix_enter.podman import Podman
-from nix_enter.log import log_event, build_log_path, session_log_path, rotate_logs
+from nix_enter.log import log_event, build_log_path, rotate_logs
 from nix_enter.containerfile import generate_containerfile
 from nix_enter import output
 
@@ -37,6 +37,7 @@ def do_build(project: Project, config: Config, log_dir: Path) -> None:
         context=project.dir,
         build_args={"USER_NAME": config.container_user, "USER_UID": str(os.getuid())},
         labels=project.labels,
+        log_file=blog,
     )
 
     if result.returncode != 0:
@@ -70,10 +71,11 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
     args.extend([
         "--userns=keep-id",
         f"--cap-drop={config.cap_drop}",
-        "--security-opt", "no-new-privileges",
         "--network", config.network,
         "--interactive", "--tty",
     ])
+    if config.no_new_privileges:
+        args.extend(["--security-opt", "no-new-privileges"])
     if config.read_only:
         args.append("--read-only")
 
@@ -173,9 +175,6 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
 def do_attach(project: Project, config: Config, log_dir: Path) -> None:
     output.info(f"Attaching to container: {project.container_name}")
     log_event(log_dir, f"ATTACH container={project.container_name}")
-
-    slog = session_log_path(log_dir)
-    rotate_logs(log_dir, "session-", keep=config.session_logs_keep)
 
     os.execvp("podman", ["podman", "start", "-ai", project.container_name])
 

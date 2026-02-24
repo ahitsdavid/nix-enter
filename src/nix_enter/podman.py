@@ -26,7 +26,10 @@ class Podman:
         result = Podman._run([*args, "--format", "json"], check=False)
         if result.returncode != 0 or not result.stdout.strip():
             return []
-        return json.loads(result.stdout)
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return []
 
     @staticmethod
     def container_exists(name: str) -> bool:
@@ -101,16 +104,13 @@ class Podman:
         Podman._run(["rmi", name], check=False)
 
     @staticmethod
-    def start(name: str) -> None:
-        Podman._run(["start", name], check=False)
-
-    @staticmethod
     def build(
         tag: str,
         containerfile: Path,
         context: Path,
         build_args: dict | None = None,
         labels: dict | None = None,
+        log_file: Path | None = None,
     ) -> subprocess.CompletedProcess:
         args = ["build"]
         for key, val in (build_args or {}).items():
@@ -118,7 +118,24 @@ class Podman:
         for key, val in (labels or {}).items():
             args.extend(["--label", f"{key}={val}"])
         args.extend(["-t", tag, "-f", str(containerfile), str(context)])
-        return Podman._run(args, capture=False, check=False)
+        if log_file is None:
+            return Podman._run(args, capture=False, check=False)
+        # Tee build output to both terminal and log file
+        proc = subprocess.Popen(
+            ["podman", *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        with open(log_file, "w") as f:
+            for line in proc.stdout:
+                print(line, end="", flush=True)
+                f.write(line)
+        proc.wait()
+        return subprocess.CompletedProcess(
+            args=["podman", *args],
+            returncode=proc.returncode,
+        )
 
     @staticmethod
     def create(args: list[str], image: str) -> None:
