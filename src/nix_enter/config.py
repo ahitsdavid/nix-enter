@@ -23,6 +23,10 @@ class Config:
     forward_claude_config: bool = True
     forward_wayland: bool = True
     forward_x11: bool = True
+    # [container.resources]
+    cpu_limit: str = ""
+    memory_limit: str = ""
+    pids_limit: int = 0
     # [logging]
     build_logs_keep: int = 5
 
@@ -43,6 +47,11 @@ network = "host"
 
 # [container.mounts]
 # extra = ["/data:/data:ro"]
+
+# [container.resources]
+# cpu_limit = "2.0"
+# memory_limit = "8g"
+# pids_limit = 1024
 
 [container.forwarding]
 ssh_agent = true
@@ -77,6 +86,7 @@ def load_config(config_path: Path) -> Config:
     container = data.get("container", {})
     security = container.get("security", {})
     mounts = container.get("mounts", {})
+    resources = container.get("resources", {})
     forwarding = container.get("forwarding", {})
     logging = data.get("logging", {})
 
@@ -94,6 +104,12 @@ def load_config(config_path: Path) -> Config:
         cfg.network = security["network"]
     if "extra" in mounts:
         cfg.extra_mounts = mounts["extra"]
+    if "cpu_limit" in resources:
+        cfg.cpu_limit = resources["cpu_limit"]
+    if "memory_limit" in resources:
+        cfg.memory_limit = resources["memory_limit"]
+    if "pids_limit" in resources:
+        cfg.pids_limit = resources["pids_limit"]
     if "ssh_agent" in forwarding:
         cfg.forward_ssh_agent = forwarding["ssh_agent"]
     if "gitconfig" in forwarding:

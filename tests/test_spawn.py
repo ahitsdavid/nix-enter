@@ -74,6 +74,34 @@ class TestBuildContainerArgs:
         args = _build_container_args(project, config)
         assert "--read-only" not in args
 
+    def test_resource_limits_included(self):
+        project = _make_project()
+        config = _make_config(cpu_limit="2.0", memory_limit="8g", pids_limit=1024)
+        args = _build_container_args(project, config)
+        assert "--cpus" in args
+        assert args[args.index("--cpus") + 1] == "2.0"
+        assert "--memory" in args
+        assert args[args.index("--memory") + 1] == "8g"
+        assert "--pids-limit" in args
+        assert args[args.index("--pids-limit") + 1] == "1024"
+
+    def test_resource_limits_omitted_by_default(self):
+        project = _make_project()
+        config = _make_config()
+        args = _build_container_args(project, config)
+        assert "--cpus" not in args
+        assert "--memory" not in args
+        assert "--pids-limit" not in args
+
+    def test_resource_limits_partial(self):
+        project = _make_project()
+        config = _make_config(memory_limit="4g")
+        args = _build_container_args(project, config)
+        assert "--cpus" not in args
+        assert "--memory" in args
+        assert args[args.index("--memory") + 1] == "4g"
+        assert "--pids-limit" not in args
+
 
 class TestDoSpawn:
     """Test do_spawn() function."""

@@ -59,6 +59,37 @@ def test_load_config_forwarding_override(tmp_path):
     assert cfg.forward_ssh_agent is True  # default preserved
 
 
+def test_default_resource_limits():
+    cfg = Config()
+    assert cfg.cpu_limit == ""
+    assert cfg.memory_limit == ""
+    assert cfg.pids_limit == 0
+
+
+def test_load_config_resource_limits(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text(
+        '[container.resources]\ncpu_limit = "2.0"\nmemory_limit = "8g"\npids_limit = 1024\n'
+    )
+    cfg = load_config(config_file)
+    assert cfg.cpu_limit == "2.0"
+    assert cfg.memory_limit == "8g"
+    assert cfg.pids_limit == 1024
+
+
+def test_load_config_no_resources_keeps_defaults(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text('[container]\nuser = "dev"\n')
+    cfg = load_config(config_file)
+    assert cfg.cpu_limit == ""
+    assert cfg.memory_limit == ""
+    assert cfg.pids_limit == 0
+
+
 def test_init_config_creates_file(tmp_path):
     config_path = tmp_path / ".nix-enter" / "config.toml"
     init_config(config_path)

@@ -68,6 +68,14 @@ def _build_container_args(project: Project, config: Config) -> list[str]:
     if config.read_only:
         args.append("--read-only")
 
+    # Resource limits
+    if config.cpu_limit:
+        args.extend(["--cpus", config.cpu_limit])
+    if config.memory_limit:
+        args.extend(["--memory", config.memory_limit])
+    if config.pids_limit:
+        args.extend(["--pids-limit", str(config.pids_limit)])
+
     # Tmpfs
     args.extend([
         "--tmpfs", "/tmp:rw,nosuid,nodev",
