@@ -23,6 +23,9 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--list", action="store_true", help="Show all nix-enter projects system-wide")
     group.add_argument("--purge", action="store_true", help="Remove orphaned resources")
     group.add_argument("--spawn", metavar="CMD", help="Run command headlessly and exit")
+    group.add_argument("--worktree", metavar="NAME", help="Create a git worktree with its own container")
+    parser.add_argument("--branch", metavar="BRANCH", help="With --worktree: use existing branch")
+    parser.add_argument("--remove", action="store_true", help="With --worktree: remove worktree and its resources")
     parser.add_argument("--all", action="store_true", help="With --clean: also remove claude volume")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     return parser
@@ -34,6 +37,12 @@ def main() -> None:
 
     if args.all and not args.clean:
         output.die("--all can only be used with --clean")
+
+    if args.branch and not args.worktree:
+        output.die("--branch can only be used with --worktree")
+
+    if args.remove and not args.worktree:
+        output.die("--remove can only be used with --worktree")
 
     output.set_verbose(args.verbose)
 
@@ -51,6 +60,12 @@ def main() -> None:
     # All other commands need project context
     project = Project.from_cwd()
     config_path = project.nixenter_dir / "config.toml"
+
+    # --worktree: operates on current project dir, does NOT require --init
+    if args.worktree:
+        from nix_enter.commands import worktree
+        worktree.run(project.dir, args.worktree, branch=args.branch, remove=args.remove)
+        return
 
     # --init: create config and exit
     if args.init:
