@@ -151,14 +151,7 @@ def do_attach(project: Project, config: Config, log_dir: Path) -> None:
     slog = session_log_path(log_dir)
     rotate_logs(log_dir, "session-", keep=config.session_logs_keep)
 
-    # Use "podman start -ai" to start+attach in one step.
-    # Separate start then attach races — bash exits before attach connects.
-    os.execvp("script", [
-        "script", "-q", "-e",
-        "--log-out", str(slog),
-        "--output-limit", str(config.session_log_limit_mb),
-        "-c", f"podman start -ai {project.container_name}",
-    ])
+    os.execvp("podman", ["podman", "start", "-ai", project.container_name])
 
 
 def run(
