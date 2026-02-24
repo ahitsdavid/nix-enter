@@ -30,7 +30,7 @@ def test_generate_base(tmp_path):
     content = generate_containerfile(tmp_path, user="user", uid=1000)
     assert "FROM registry.fedoraproject.org/fedora:latest" in content
     assert "USER" in content
-    assert "claude-code" in content
+    assert "claude.ai/install.sh" in content
 
 
 def test_generate_python(tmp_path):

@@ -9,9 +9,8 @@ FROM registry.fedoraproject.org/fedora:latest
 # System packages
 RUN dnf install -y --skip-unavailable \\
     git \\
+    curl \\
     wget \\
-    nodejs \\
-    npm \\
     python3 \\
     gcc \\
     gcc-c++ \\
@@ -19,14 +18,15 @@ RUN dnf install -y --skip-unavailable \\
     procps-ng \\
   && dnf clean all
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
-
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
 USER $USER_NAME
+
+# Claude Code (native installer — self-updates, persists on home volume)
+RUN curl -fsSL https://claude.ai/install.sh | sh
+ENV PATH="/home/{user}/.claude/local/bin:${{PATH}}"
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
@@ -37,9 +37,8 @@ FROM registry.fedoraproject.org/fedora:latest
 # System + Python packages
 RUN dnf install -y --skip-unavailable \\
     git \\
+    curl \\
     wget \\
-    nodejs \\
-    npm \\
     python3 \\
     python3-devel \\
     python3-pip \\
@@ -49,14 +48,15 @@ RUN dnf install -y --skip-unavailable \\
     procps-ng \\
   && dnf clean all
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
-
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
 USER $USER_NAME
+
+# Claude Code (native installer — self-updates, persists on home volume)
+RUN curl -fsSL https://claude.ai/install.sh | sh
+ENV PATH="/home/{user}/.claude/local/bin:${{PATH}}"
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
@@ -67,6 +67,7 @@ FROM registry.fedoraproject.org/fedora:latest
 # System + Node packages
 RUN dnf install -y --skip-unavailable \\
     git \\
+    curl \\
     wget \\
     nodejs \\
     npm \\
@@ -77,14 +78,15 @@ RUN dnf install -y --skip-unavailable \\
     procps-ng \\
   && dnf clean all
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
-
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
 USER $USER_NAME
+
+# Claude Code (native installer — self-updates, persists on home volume)
+RUN curl -fsSL https://claude.ai/install.sh | sh
+ENV PATH="/home/{user}/.claude/local/bin:${{PATH}}"
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
@@ -95,9 +97,8 @@ FROM registry.fedoraproject.org/fedora:latest
 # System packages
 RUN dnf install -y --skip-unavailable \\
     git \\
+    curl \\
     wget \\
-    nodejs \\
-    npm \\
     python3 \\
     gcc \\
     gcc-c++ \\
@@ -105,9 +106,6 @@ RUN dnf install -y --skip-unavailable \\
     procps-ng \\
     rustup \\
   && dnf clean all
-
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
 
 # Non-root user
 ARG USER_NAME={user}
@@ -119,6 +117,10 @@ USER $USER_NAME
 RUN rustup-init -y
 ENV PATH="/home/{user}/.cargo/bin:${{PATH}}"
 
+# Claude Code (native installer — self-updates, persists on home volume)
+RUN curl -fsSL https://claude.ai/install.sh | sh
+ENV PATH="/home/{user}/.claude/local/bin:${{PATH}}"
+
 WORKDIR /workspace
 CMD ["/bin/bash"]
 """,
@@ -128,9 +130,8 @@ FROM registry.fedoraproject.org/fedora:latest
 # System + Go packages
 RUN dnf install -y --skip-unavailable \\
     git \\
+    curl \\
     wget \\
-    nodejs \\
-    npm \\
     python3 \\
     gcc \\
     gcc-c++ \\
@@ -139,14 +140,15 @@ RUN dnf install -y --skip-unavailable \\
     golang \\
   && dnf clean all
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
-
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
 USER $USER_NAME
+
+# Claude Code (native installer — self-updates, persists on home volume)
+RUN curl -fsSL https://claude.ai/install.sh | sh
+ENV PATH="/home/{user}/.claude/local/bin:${{PATH}}"
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
