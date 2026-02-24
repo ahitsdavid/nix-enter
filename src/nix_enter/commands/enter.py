@@ -126,14 +126,20 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
         else:
             output.warn("No git config found (~/.gitconfig or ~/.config/git/config) -- git will be unconfigured in container")
 
-    # Claude Code global config (~/.config/claude/)
+    # Claude Code global config (~/.claude/)
     if config.forward_claude_config:
-        claude_config = Path.home() / ".config" / "claude"
-        if claude_config.is_dir():
-            output.verbose("Mounting ~/.config/claude read-only")
-            args.extend(["--volume", f"{claude_config.resolve()}:/home/{config.container_user}/.config/claude:ro"])
+        claude_dir = Path.home() / ".claude"
+        container_claude = f"/home/{config.container_user}/.claude"
+        if claude_dir.is_dir():
+            # Mount individual config files on top of the persistent volume
+            claude_files = [".credentials.json", "settings.json", "settings.local.json", "CLAUDE.md"]
+            for fname in claude_files:
+                fpath = claude_dir / fname
+                if fpath.exists():
+                    output.verbose(f"Forwarding ~/.claude/{fname} read-only")
+                    args.extend(["--volume", f"{fpath.resolve()}:{container_claude}/{fname}:ro"])
         else:
-            output.warn("No ~/.config/claude found -- Claude Code settings won't be forwarded")
+            output.warn("No ~/.claude found -- Claude Code settings won't be forwarded")
 
     # Wayland — only attempt if display server is available
     if config.forward_wayland:
