@@ -122,7 +122,6 @@ class TestSharedCacheArgs:
         env_args = [args[i + 1] for i, v in enumerate(args) if v == "--env"]
         assert "PIP_CACHE_DIR=/cache/pip" in env_args
         assert "NPM_CONFIG_CACHE=/cache/npm" in env_args
-        assert "CARGO_HOME=/cache/cargo" in env_args
 
     def test_cache_volume_absent_when_disabled(self):
         project = _make_project()

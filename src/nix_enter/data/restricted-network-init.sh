@@ -21,4 +21,4 @@ done
 iptables -A OUTPUT -j DROP
 
 # Drop NET_ADMIN capability and exec the real entrypoint
-exec capsh --drop=cap_net_admin -- -c "exec $*"
+exec capsh --drop=cap_net_admin -- -c 'exec "$@"' -- "$@"

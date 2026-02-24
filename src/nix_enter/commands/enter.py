@@ -181,13 +181,12 @@ def _build_container_args(project: Project, config: Config) -> list[str]:
                 "--env", f"DISPLAY={display}",
             ])
 
-    # Shared package cache (pip/npm/cargo)
+    # Shared package cache (pip/npm)
     if config.shared_cache:
         args.extend([
             "--volume", "nix-enter-cache-global:/cache:rw",
             "--env", "PIP_CACHE_DIR=/cache/pip",
             "--env", "NPM_CONFIG_CACHE=/cache/npm",
-            "--env", "CARGO_HOME=/cache/cargo",
         ])
 
     return args

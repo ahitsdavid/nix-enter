@@ -13,7 +13,7 @@ class Config:
     # [container.security]
     read_only: bool = True
     cap_drop: str = "all"
-    no_new_privileges: bool = True
+    no_new_privileges: bool = False
     network: str = "host"
     # [container.network]
     allowed_domains: list[str] = field(default_factory=list)
@@ -46,7 +46,7 @@ containerfile = "Containerfile.dev"
 [container.security]
 read_only = true
 cap_drop = "all"
-no_new_privileges = true
+no_new_privileges = false
 network = "host"
 
 # [container.network]
