@@ -45,5 +45,8 @@ def die(msg: str) -> None:
 def confirm(prompt: str) -> bool:
     """Prompt user for 'yes' confirmation. Returns True if confirmed."""
     print(f"{prompt}", end="", flush=True)
-    response = input()
+    try:
+        response = input()
+    except EOFError:
+        return False
     return response.strip() == "yes"

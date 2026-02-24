@@ -1,6 +1,6 @@
 """Logging -- lifecycle events, build logs, session log rotation."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 
@@ -12,7 +12,7 @@ def init_logging(project_dir: Path) -> Path:
 
 def log_event(log_dir: Path, message: str) -> None:
     lifecycle = log_dir / "lifecycle.log"
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now().isoformat(timespec="seconds")
     line = f"[{timestamp}] {message}\n"
     # Rotate before writing if over 1MB
     if lifecycle.exists() and lifecycle.stat().st_size > 1_048_576:

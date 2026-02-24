@@ -127,11 +127,14 @@ class Podman:
             stderr=subprocess.STDOUT,
             text=True,
         )
-        with open(log_file, "w") as f:
-            for line in proc.stdout:
-                print(line, end="", flush=True)
-                f.write(line)
-        proc.wait()
+        try:
+            with open(log_file, "w") as f:
+                for line in proc.stdout:
+                    print(line, end="", flush=True)
+                    f.write(line)
+        finally:
+            proc.stdout.close()
+            proc.wait()
         return subprocess.CompletedProcess(
             args=["podman", *args],
             returncode=proc.returncode,
