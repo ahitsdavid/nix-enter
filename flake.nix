@@ -14,7 +14,7 @@
     packages = forAllSystems ({ pkgs }: {
       default = pkgs.python3Packages.buildPythonApplication {
         pname = "nix-enter";
-        version = "0.2.0";
+        version = "0.3.0";
         pyproject = true;
         src = ./.;
         build-system = [ pkgs.python3Packages.setuptools ];

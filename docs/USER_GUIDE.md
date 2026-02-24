@@ -135,6 +135,49 @@ nix-enter --force
 
 This removes and recreates the container with the existing image. Faster than `--rebuild`.
 
+## Headless Agent Runs
+
+Use `--spawn` to run a command in an ephemeral container without a TTY:
+
+```bash
+nix-enter --spawn "claude -p 'write tests for the auth module'"
+```
+
+The container is created with `--rm` (auto-removed on exit) and no persistent home volume. The Claude volume is still mounted, so conversation history carries over. The exit code from the spawned command is returned to the caller.
+
+Use cases:
+- Scripted agent invocations (CI, cron, batch processing)
+- Running multiple agents in parallel (each `--spawn` gets its own container)
+- Fire-and-forget tasks where you don't need an interactive shell
+
+```bash
+# Run and check exit code
+nix-enter --spawn "claude -p 'fix lint errors'" && echo "Success" || echo "Failed"
+```
+
+## Git Worktrees
+
+Work on multiple branches simultaneously, each with its own isolated container:
+
+```bash
+# Create a worktree with a new branch
+nix-enter --worktree feature-auth
+
+# Create from an existing branch
+nix-enter --worktree fix-bug --branch fix/bug-42
+
+# Enter the worktree's container
+cd ../.nix-enter-worktrees/feature-auth
+nix-enter
+
+# Clean up worktree + container + volumes
+nix-enter --worktree feature-auth --remove
+```
+
+Worktrees are created under `../.nix-enter-worktrees/` (sibling to the project's parent directory). The main project's `config.toml` and `Containerfile.dev` are copied into each worktree.
+
+Each worktree gets its own container and volumes, so agents in different worktrees are fully isolated from each other.
+
 ## Configuration
 
 ### Config file
@@ -156,10 +199,48 @@ containerfile = "Containerfile.dev"  # which Containerfile to use
 read_only = true          # read-only root filesystem
 cap_drop = "all"          # drop all Linux capabilities
 no_new_privileges = true  # prevent privilege escalation
-network = "host"          # network mode (host for git/npm access)
+network = "host"          # network mode: "host" or "restricted"
 ```
 
 Setting `read_only = false` gives the container a writable root filesystem. Setting `cap_drop = "none"` keeps all capabilities. These weaken security -- only change them if you know what you're doing.
+
+All containers include passwordless sudo, so you can install packages at runtime without rebuilding the image.
+
+#### Network policy
+
+```toml
+[container.security]
+network = "restricted"
+
+[container.network]
+allowed_domains = ["github.com", "pypi.org", "files.pythonhosted.org", "npmjs.com", "registry.npmjs.org", "claude.ai", "api.anthropic.com", "statsig.anthropic.com"]
+```
+
+In restricted mode, the container uses `slirp4netns` networking instead of host networking. An iptables init script resolves each allowed domain at container startup and drops all other outbound traffic. DNS queries are always permitted.
+
+This is useful for locking down agent network access to only the services it needs.
+
+#### Resource limits
+
+```toml
+[container.resources]
+cpu_limit = "2.0"       # max CPU cores (e.g. "0.5", "2.0")
+memory_limit = "8g"     # max memory (e.g. "512m", "8g")
+pids_limit = 1024       # max number of processes
+```
+
+All fields are optional. Defaults to no limits. Prevents a runaway agent from consuming all host resources.
+
+#### Shared package cache
+
+```toml
+[container.cache]
+shared = true   # share pip/npm/cargo cache across projects (default: true)
+```
+
+When enabled, a global volume (`nix-enter-cache-global`) is mounted at `/cache` with subdirectories for pip, npm, and cargo. This means downloading a package once makes it available in all your project containers.
+
+Set `shared = false` to disable.
 
 #### Extra mounts
 
@@ -339,3 +420,11 @@ If builds are slow because the cache isn't being reused, make sure you haven't c
 Run with `--verbose` to check if the display socket was detected. For Wayland, both `WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR` must be set on the host. For X11, `DISPLAY` must be set and `/tmp/.X11-unix` must exist.
 
 For Qt apps, install `qt6-qtwayland` in your Containerfile. For GTK apps, Wayland support is usually built-in.
+
+### Restricted network mode blocks everything
+
+The iptables rules are built by resolving domain names at container startup. If DNS is slow or a domain fails to resolve, it won't be reachable. Check the allowed_domains list includes all necessary domains (don't forget CDN subdomains like `files.pythonhosted.org` for PyPI).
+
+### --spawn command hangs
+
+`--spawn` runs without a TTY. If the command you're running expects interactive input, it will hang. Make sure the command runs non-interactively (e.g., `claude -p '...'` not just `claude`).
