@@ -111,17 +111,22 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
     else:
         output.warn("SSH_AUTH_SOCK not set -- SSH agent forwarding disabled")
 
-    # Git config
+    # Git config — check both traditional and XDG locations
     gitconfig = Path.home() / ".gitconfig"
+    gitconfig_xdg = Path.home() / ".config" / "git" / "config"
     if gitconfig.exists():
         output.verbose("Mounting ~/.gitconfig read-only")
-        args.extend(["--volume", f"{gitconfig}:/home/{config.container_user}/.gitconfig:ro"])
+        # Resolve symlinks (home-manager links to /nix/store)
+        args.extend(["--volume", f"{gitconfig.resolve()}:/home/{config.container_user}/.gitconfig:ro"])
+    elif gitconfig_xdg.exists():
+        output.verbose("Mounting ~/.config/git/config read-only")
+        args.extend(["--volume", f"{gitconfig_xdg.resolve()}:/home/{config.container_user}/.config/git/config:ro"])
 
     # Claude Code global config (~/.config/claude/)
     claude_config = Path.home() / ".config" / "claude"
     if claude_config.is_dir():
         output.verbose("Mounting ~/.config/claude read-only")
-        args.extend(["--volume", f"{claude_config}:/home/{config.container_user}/.config/claude:ro"])
+        args.extend(["--volume", f"{claude_config.resolve()}:/home/{config.container_user}/.config/claude:ro"])
 
     # Wayland
     wayland = os.environ.get("WAYLAND_DISPLAY", "")
