@@ -146,18 +146,18 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
 
 def do_attach(project: Project, config: Config, log_dir: Path) -> None:
     output.info(f"Attaching to container: {project.container_name}")
-    Podman.start(project.container_name)
     log_event(log_dir, f"ATTACH container={project.container_name}")
 
     slog = session_log_path(log_dir)
     rotate_logs(log_dir, "session-", keep=config.session_logs_keep)
 
-    # Replace current process with script + podman attach
+    # Use "podman start -ai" to start+attach in one step.
+    # Separate start then attach races — bash exits before attach connects.
     os.execvp("script", [
         "script", "-q", "-e",
         "--log-out", str(slog),
         "--output-limit", str(config.session_log_limit_mb),
-        "-c", f"podman attach {project.container_name}",
+        "-c", f"podman start -ai {project.container_name}",
     ])
 
 
