@@ -23,6 +23,36 @@ class Config:
     session_log_limit_mb: int = 50
 
 
+DEFAULT_CONFIG = """\
+# nix-enter project config
+# See: https://github.com/ahitsdavid/nix-enter
+
+[container]
+user = "user"
+containerfile = "Containerfile.dev"
+
+[container.security]
+read_only = true
+cap_drop = "all"
+no_new_privileges = true
+network = "host"
+
+# [container.mounts]
+# extra = ["/data:/data:ro"]
+
+[logging]
+build_logs_keep = 5
+session_logs_keep = 10
+session_log_limit_mb = 50
+"""
+
+
+def init_config(config_path: Path) -> None:
+    """Create default config.toml if it doesn't exist."""
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(DEFAULT_CONFIG)
+
+
 def load_config(config_path: Path) -> Config:
     """Load config from TOML file, falling back to defaults for missing keys."""
     cfg = Config()

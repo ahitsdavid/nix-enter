@@ -3,7 +3,7 @@
 import argparse
 
 from nix_enter.project import Project
-from nix_enter.config import load_config
+from nix_enter.config import load_config, init_config
 from nix_enter.log import init_logging
 from nix_enter import output
 
@@ -14,6 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Manage hardened per-project podman containers for AI coding agents.",
     )
     group = parser.add_mutually_exclusive_group()
+    group.add_argument("--init", action="store_true", help="Initialize nix-enter in current directory")
     group.add_argument("--status", action="store_true", help="Show container/image/volume state")
     group.add_argument("--rebuild", action="store_true", help="Rebuild image and recreate container")
     group.add_argument("--force", action="store_true", help="Force-recreate container (keep image)")
@@ -47,7 +48,23 @@ def main() -> None:
 
     # All other commands need project context
     project = Project.from_cwd()
-    config = load_config(project.nixenter_dir / "config.toml")
+    config_path = project.nixenter_dir / "config.toml"
+
+    # --init: create config and exit
+    if args.init:
+        if config_path.exists():
+            output.warn(f"Already initialized: {config_path}")
+        else:
+            init_config(config_path)
+            output.ok(f"Initialized: {config_path}")
+            output.info("Edit the config, then run 'nix-enter' to start")
+        return
+
+    # Gate: require --init before any other command
+    if not config_path.exists():
+        output.die(f"Not a nix-enter project. Run 'nix-enter --init' first.")
+
+    config = load_config(config_path)
     log_dir = init_logging(project.dir)
 
     if args.status:

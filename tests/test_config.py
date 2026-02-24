@@ -1,5 +1,5 @@
 from pathlib import Path
-from nix_enter.config import Config, load_config
+from nix_enter.config import Config, load_config, init_config
 
 
 def test_default_config():
@@ -37,3 +37,13 @@ def test_load_config_extra_mounts(tmp_path):
     config_file.write_text('[container.mounts]\nextra = ["/data:/data:ro"]\n')
     cfg = load_config(config_file)
     assert cfg.extra_mounts == ["/data:/data:ro"]
+
+
+def test_init_config_creates_file(tmp_path):
+    config_path = tmp_path / ".nix-enter" / "config.toml"
+    init_config(config_path)
+    assert config_path.exists()
+    # Generated config should be valid TOML that loads with defaults
+    cfg = load_config(config_path)
+    assert cfg.container_user == "user"
+    assert cfg.build_logs_keep == 5
