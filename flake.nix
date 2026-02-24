@@ -41,6 +41,7 @@
           podman
           util-linux
         ];
+        env.PYTHONPATH = "src";
       };
     });
   };
