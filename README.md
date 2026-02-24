@@ -2,7 +2,7 @@
 
 Hardened per-project podman containers for AI coding agents. Drop into any project directory, get an isolated container with your code mounted at `/workspace`.
 
-Not a general-purpose dev shell -- purpose-built for running Claude Code (or similar) in a locked-down environment.
+Not a general-purpose dev shell -- purpose-built for running Claude Code in a locked-down environment.
 
 ## Install
 

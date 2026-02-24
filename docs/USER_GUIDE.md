@@ -2,7 +2,7 @@
 
 ## What is nix-enter?
 
-nix-enter creates isolated Podman containers for AI coding agents. Each project gets its own container with:
+nix-enter creates isolated Podman containers for Claude Code. Each project gets its own container with:
 
 - Your project code mounted at `/workspace`
 - A persistent home directory (survives container recreation)
