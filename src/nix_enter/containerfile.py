@@ -16,12 +16,16 @@ RUN dnf install -y --skip-unavailable \\
     gcc-c++ \\
     make \\
     procps-ng \\
+    sudo \\
+    iptables \\
+    bind-utils \\
   && dnf clean all
 
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
+RUN echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USER_NAME
 USER $USER_NAME
 
 # Claude Code (native installer — self-updates, persists on home volume)
@@ -46,12 +50,16 @@ RUN dnf install -y --skip-unavailable \\
     gcc-c++ \\
     make \\
     procps-ng \\
+    sudo \\
+    iptables \\
+    bind-utils \\
   && dnf clean all
 
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
+RUN echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USER_NAME
 USER $USER_NAME
 
 # Claude Code (native installer — self-updates, persists on home volume)
@@ -76,12 +84,16 @@ RUN dnf install -y --skip-unavailable \\
     gcc-c++ \\
     make \\
     procps-ng \\
+    sudo \\
+    iptables \\
+    bind-utils \\
   && dnf clean all
 
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
+RUN echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USER_NAME
 USER $USER_NAME
 
 # Claude Code (native installer — self-updates, persists on home volume)
@@ -105,12 +117,16 @@ RUN dnf install -y --skip-unavailable \\
     make \\
     procps-ng \\
     rustup \\
+    sudo \\
+    iptables \\
+    bind-utils \\
   && dnf clean all
 
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
+RUN echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USER_NAME
 USER $USER_NAME
 
 # Rust toolchain
@@ -138,12 +154,16 @@ RUN dnf install -y --skip-unavailable \\
     make \\
     procps-ng \\
     golang \\
+    sudo \\
+    iptables \\
+    bind-utils \\
   && dnf clean all
 
 # Non-root user
 ARG USER_NAME={user}
 ARG USER_UID={uid}
 RUN useradd -m -u "$USER_UID" -s /bin/bash "$USER_NAME"
+RUN echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USER_NAME
 USER $USER_NAME
 
 # Claude Code (native installer — self-updates, persists on home volume)
