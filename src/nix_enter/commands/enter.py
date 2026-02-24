@@ -123,6 +123,8 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
         elif gitconfig_xdg.exists():
             output.verbose("Mounting ~/.config/git/config read-only")
             args.extend(["--volume", f"{gitconfig_xdg.resolve()}:/home/{config.container_user}/.config/git/config:ro"])
+        else:
+            output.verbose("No git config found (~/.gitconfig or ~/.config/git/config) -- skipping")
 
     # Claude Code global config (~/.config/claude/)
     if config.forward_claude_config:
@@ -130,6 +132,8 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
         if claude_config.is_dir():
             output.verbose("Mounting ~/.config/claude read-only")
             args.extend(["--volume", f"{claude_config.resolve()}:/home/{config.container_user}/.config/claude:ro"])
+        else:
+            output.verbose("No ~/.config/claude found -- skipping")
 
     # Wayland
     if config.forward_wayland:
@@ -144,6 +148,10 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
                     "--env", f"WAYLAND_DISPLAY={wayland}",
                     "--env", "XDG_RUNTIME_DIR=/tmp",
                 ])
+            else:
+                output.verbose(f"Wayland socket {sock} not found -- skipping")
+        else:
+            output.verbose("WAYLAND_DISPLAY or XDG_RUNTIME_DIR not set -- skipping Wayland")
 
     # X11
     if config.forward_x11:
@@ -154,6 +162,8 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
                 "--volume", "/tmp/.X11-unix:/tmp/.X11-unix:ro",
                 "--env", f"DISPLAY={display}",
             ])
+        else:
+            output.verbose("DISPLAY not set or /tmp/.X11-unix missing -- skipping X11")
 
     Podman.create(args, project.image_name)
     log_event(log_dir, f"CREATE container={project.container_name} image={project.image_name}")
