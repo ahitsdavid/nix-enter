@@ -129,3 +129,29 @@ def test_init_config_creates_gitignore(tmp_path):
     gitignore = tmp_path / ".nix-enter" / ".gitignore"
     assert gitignore.exists()
     assert "logs/" in gitignore.read_text()
+
+
+def test_default_allowed_domains():
+    cfg = Config()
+    assert cfg.allowed_domains == []
+
+
+def test_load_config_allowed_domains(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text(
+        '[container.network]\n'
+        'allowed_domains = ["github.com", "pypi.org"]\n'
+    )
+    cfg = load_config(config_file)
+    assert cfg.allowed_domains == ["github.com", "pypi.org"]
+
+
+def test_load_config_no_network_section_keeps_default(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text('[container]\nuser = "dev"\n')
+    cfg = load_config(config_file)
+    assert cfg.allowed_domains == []

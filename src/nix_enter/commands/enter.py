@@ -61,8 +61,17 @@ def _build_container_args(project: Project, config: Config) -> list[str]:
     args.extend([
         "--userns=keep-id",
         f"--cap-drop={config.cap_drop}",
-        "--network", config.network,
     ])
+    if config.network == "restricted":
+        args.extend(["--network", "slirp4netns"])
+        args.append("--cap-add=NET_ADMIN")
+        init_script = Path(__file__).parent.parent / "data" / "restricted-network-init.sh"
+        args.extend(["--volume", f"{init_script.resolve()}:/usr/local/bin/restricted-network-init.sh:ro"])
+        domains = ",".join(config.allowed_domains)
+        args.extend(["--env", f"NIX_ENTER_ALLOWED_DOMAINS={domains}"])
+        args.extend(["--entrypoint", "/usr/local/bin/restricted-network-init.sh"])
+    else:
+        args.extend(["--network", config.network])
     if config.no_new_privileges:
         args.extend(["--security-opt", "no-new-privileges"])
     if config.read_only:

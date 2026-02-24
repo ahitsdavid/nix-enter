@@ -15,6 +15,8 @@ class Config:
     cap_drop: str = "all"
     no_new_privileges: bool = True
     network: str = "host"
+    # [container.network]
+    allowed_domains: list[str] = field(default_factory=list)
     # [container.mounts]
     extra_mounts: list[str] = field(default_factory=list)
     # [container.forwarding]
@@ -46,6 +48,9 @@ read_only = true
 cap_drop = "all"
 no_new_privileges = true
 network = "host"
+
+# [container.network]
+# allowed_domains = ["github.com", "pypi.org", "files.pythonhosted.org", "npmjs.com", "registry.npmjs.org", "crates.io", "static.crates.io", "registry.fedoraproject.org", "claude.ai", "api.anthropic.com", "statsig.anthropic.com"]
 
 # [container.mounts]
 # extra = ["/data:/data:ro"]
@@ -90,6 +95,7 @@ def load_config(config_path: Path) -> Config:
 
     container = data.get("container", {})
     security = container.get("security", {})
+    network_cfg = container.get("network", {})
     mounts = container.get("mounts", {})
     cache = container.get("cache", {})
     resources = container.get("resources", {})
@@ -108,6 +114,8 @@ def load_config(config_path: Path) -> Config:
         cfg.no_new_privileges = security["no_new_privileges"]
     if "network" in security:
         cfg.network = security["network"]
+    if "allowed_domains" in network_cfg:
+        cfg.allowed_domains = network_cfg["allowed_domains"]
     if "extra" in mounts:
         cfg.extra_mounts = mounts["extra"]
     if "shared" in cache:

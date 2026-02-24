@@ -466,3 +466,90 @@ class TestPodmanRunContainer:
         Podman.run_container([], "img", "false")
         mock_run.assert_called_once()
         assert mock_run.call_args[1]["check"] is False
+
+
+class TestRestrictedNetwork:
+    """Test restricted network mode in _build_container_args."""
+
+    def test_restricted_uses_slirp4netns(self):
+        project = _make_project()
+        config = _make_config(network="restricted")
+        args = _build_container_args(project, config)
+        idx = args.index("--network")
+        assert args[idx + 1] == "slirp4netns"
+
+    def test_restricted_adds_net_admin_cap(self):
+        project = _make_project()
+        config = _make_config(network="restricted")
+        args = _build_container_args(project, config)
+        assert "--cap-add=NET_ADMIN" in args
+
+    def test_restricted_sets_domains_env(self):
+        project = _make_project()
+        config = _make_config(
+            network="restricted",
+            allowed_domains=["github.com", "pypi.org"],
+        )
+        args = _build_container_args(project, config)
+        env_args = [args[i + 1] for i, v in enumerate(args) if v == "--env"]
+        assert "NIX_ENTER_ALLOWED_DOMAINS=github.com,pypi.org" in env_args
+
+    def test_restricted_empty_domains_env(self):
+        project = _make_project()
+        config = _make_config(network="restricted", allowed_domains=[])
+        args = _build_container_args(project, config)
+        env_args = [args[i + 1] for i, v in enumerate(args) if v == "--env"]
+        assert "NIX_ENTER_ALLOWED_DOMAINS=" in env_args
+
+    def test_restricted_overrides_entrypoint(self):
+        project = _make_project()
+        config = _make_config(network="restricted")
+        args = _build_container_args(project, config)
+        idx = args.index("--entrypoint")
+        assert args[idx + 1] == "/usr/local/bin/restricted-network-init.sh"
+
+    def test_restricted_mounts_init_script(self):
+        project = _make_project()
+        config = _make_config(network="restricted")
+        args = _build_container_args(project, config)
+        volume_args = [args[i + 1] for i, v in enumerate(args) if v == "--volume"]
+        init_mounts = [v for v in volume_args if "restricted-network-init.sh" in v]
+        assert len(init_mounts) == 1
+        assert init_mounts[0].endswith(":/usr/local/bin/restricted-network-init.sh:ro")
+
+    def test_host_mode_unchanged(self):
+        project = _make_project()
+        config = _make_config(network="host")
+        args = _build_container_args(project, config)
+        idx = args.index("--network")
+        assert args[idx + 1] == "host"
+        assert "--cap-add=NET_ADMIN" not in args
+        assert "--entrypoint" not in args
+
+    def test_none_mode_unchanged(self):
+        project = _make_project()
+        config = _make_config(network="none")
+        args = _build_container_args(project, config)
+        idx = args.index("--network")
+        assert args[idx + 1] == "none"
+        assert "--cap-add=NET_ADMIN" not in args
+        assert "--entrypoint" not in args
+
+
+class TestRestrictedNetworkInitScript:
+    """Test the restricted-network-init.sh script exists and is valid."""
+
+    def test_init_script_exists(self):
+        script = Path(__file__).parent.parent / "src" / "nix_enter" / "data" / "restricted-network-init.sh"
+        assert script.exists()
+
+    def test_init_script_is_executable(self):
+        import os
+        script = Path(__file__).parent.parent / "src" / "nix_enter" / "data" / "restricted-network-init.sh"
+        assert os.access(script, os.X_OK)
+
+    def test_init_script_valid_bash(self):
+        import subprocess
+        script = Path(__file__).parent.parent / "src" / "nix_enter" / "data" / "restricted-network-init.sh"
+        result = subprocess.run(["bash", "-n", str(script)], capture_output=True)
+        assert result.returncode == 0, f"bash -n failed: {result.stderr.decode()}"
