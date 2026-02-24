@@ -14,8 +14,7 @@ def test_log_event_appends(tmp_path):
     log_event(log_dir, "TEST event two")
     lifecycle = log_dir / "lifecycle.log"
     assert lifecycle.exists()
-    lines = lifecycle.read_text().strip().split("
-")
+    lines = lifecycle.read_text().strip().splitlines()
     assert len(lines) == 2
     assert "TEST event one" in lines[0]
     assert "TEST event two" in lines[1]
