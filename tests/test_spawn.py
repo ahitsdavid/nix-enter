@@ -22,6 +22,8 @@ def _make_config(**overrides) -> Config:
     cfg.forward_claude_config = False
     cfg.forward_wayland = False
     cfg.forward_x11 = False
+    # Disable shared cache by default to avoid Podman calls in unrelated tests
+    cfg.shared_cache = False
     for k, v in overrides.items():
         setattr(cfg, k, v)
     return cfg
@@ -101,6 +103,86 @@ class TestBuildContainerArgs:
         assert "--memory" in args
         assert args[args.index("--memory") + 1] == "4g"
         assert "--pids-limit" not in args
+
+
+class TestSharedCacheArgs:
+    """Test shared package cache volume mount + env vars in _build_container_args."""
+
+    def test_cache_volume_mount_when_enabled(self):
+        project = _make_project()
+        config = _make_config(shared_cache=True)
+        args = _build_container_args(project, config)
+        volume_args = [args[i + 1] for i, v in enumerate(args) if v == "--volume"]
+        assert "nix-enter-cache-global:/cache:rw" in volume_args
+
+    def test_cache_env_vars_when_enabled(self):
+        project = _make_project()
+        config = _make_config(shared_cache=True)
+        args = _build_container_args(project, config)
+        env_args = [args[i + 1] for i, v in enumerate(args) if v == "--env"]
+        assert "PIP_CACHE_DIR=/cache/pip" in env_args
+        assert "NPM_CONFIG_CACHE=/cache/npm" in env_args
+        assert "CARGO_HOME=/cache/cargo" in env_args
+
+    def test_cache_volume_absent_when_disabled(self):
+        project = _make_project()
+        config = _make_config(shared_cache=False)
+        args = _build_container_args(project, config)
+        volume_args = [args[i + 1] for i, v in enumerate(args) if v == "--volume"]
+        assert not any("nix-enter-cache-global" in v for v in volume_args)
+
+    def test_cache_env_vars_absent_when_disabled(self):
+        project = _make_project()
+        config = _make_config(shared_cache=False)
+        args = _build_container_args(project, config)
+        env_args = [args[i + 1] for i, v in enumerate(args) if v == "--env"]
+        assert "PIP_CACHE_DIR=/cache/pip" not in env_args
+        assert "NPM_CONFIG_CACHE=/cache/npm" not in env_args
+        assert "CARGO_HOME=/cache/cargo" not in env_args
+
+    @patch("nix_enter.commands.enter.Podman")
+    @patch("nix_enter.commands.enter.log_event")
+    @patch("nix_enter.commands.enter.secrets.token_hex", return_value="cccc")
+    def test_cache_volume_created_if_missing_in_spawn(self, mock_hex, mock_log, mock_podman, tmp_path):
+        project = _make_project(tmp_path)
+        config = _make_config(shared_cache=True)
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+
+        mock_podman.image_exists.return_value = True
+        mock_podman.volume_exists.return_value = False
+        mock_podman.run_container.return_value = 0
+
+        do_spawn(project, config, log_dir, command="echo hi")
+
+        # Should create both claude volume and cache volume
+        create_calls = mock_podman.volume_create.call_args_list
+        cache_calls = [c for c in create_calls if c[0][0] == "nix-enter-cache-global"]
+        assert len(cache_calls) == 1
+        assert cache_calls[0] == call(
+            "nix-enter-cache-global",
+            labels={"nix-enter.managed": "true", "nix-enter.cache": "global"},
+        )
+
+    @patch("nix_enter.commands.enter.Podman")
+    @patch("nix_enter.commands.enter.log_event")
+    @patch("nix_enter.commands.enter.secrets.token_hex", return_value="dddd")
+    def test_cache_volume_not_created_if_exists_in_spawn(self, mock_hex, mock_log, mock_podman, tmp_path):
+        project = _make_project(tmp_path)
+        config = _make_config(shared_cache=True)
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+
+        mock_podman.image_exists.return_value = True
+        mock_podman.volume_exists.return_value = True
+        mock_podman.run_container.return_value = 0
+
+        do_spawn(project, config, log_dir, command="echo hi")
+
+        # Cache volume should not be created since it already exists
+        create_calls = mock_podman.volume_create.call_args_list
+        cache_calls = [c for c in create_calls if c[0][0] == "nix-enter-cache-global"]
+        assert len(cache_calls) == 0
 
 
 class TestDoSpawn:

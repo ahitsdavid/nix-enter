@@ -172,6 +172,15 @@ def _build_container_args(project: Project, config: Config) -> list[str]:
                 "--env", f"DISPLAY={display}",
             ])
 
+    # Shared package cache (pip/npm/cargo)
+    if config.shared_cache:
+        args.extend([
+            "--volume", "nix-enter-cache-global:/cache:rw",
+            "--env", "PIP_CACHE_DIR=/cache/pip",
+            "--env", "NPM_CONFIG_CACHE=/cache/npm",
+            "--env", "CARGO_HOME=/cache/cargo",
+        ])
+
     return args
 
 
@@ -222,6 +231,13 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
             output.verbose(f"Creating volume: {vol}")
             Podman.volume_create(vol, labels=project.labels)
 
+    # Ensure shared cache volume
+    if config.shared_cache:
+        cache_vol = "nix-enter-cache-global"
+        if not Podman.volume_exists(cache_vol):
+            output.verbose(f"Creating global cache volume: {cache_vol}")
+            Podman.volume_create(cache_vol, labels={"nix-enter.managed": "true", "nix-enter.cache": "global"})
+
     args = [
         "--name", project.container_name,
         "--hostname", project.name,
@@ -262,6 +278,13 @@ def do_spawn(project: Project, config: Config, log_dir: Path, command: str) -> i
     if not Podman.volume_exists(project.volume_claude):
         output.verbose(f"Creating volume: {project.volume_claude}")
         Podman.volume_create(project.volume_claude, labels=project.labels)
+
+    # Ensure shared cache volume
+    if config.shared_cache:
+        cache_vol = "nix-enter-cache-global"
+        if not Podman.volume_exists(cache_vol):
+            output.verbose(f"Creating global cache volume: {cache_vol}")
+            Podman.volume_create(cache_vol, labels={"nix-enter.managed": "true", "nix-enter.cache": "global"})
 
     suffix = secrets.token_hex(2)
     container_name = f"{project.container_name}-spawn-{suffix}"

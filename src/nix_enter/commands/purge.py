@@ -37,16 +37,34 @@ def run() -> None:
             orphans[pdir] = labels.get("nix-enter.project-name", "unknown")
             orphan_images.append(img.get("Id", img.get("ID", "")))
 
-    if not orphans:
+    # Check for orphaned global cache volume: remove only if ALL managed containers are orphaned
+    global_cache_vol = None
+    for vol in Podman.volume_ls(filters=managed_filter):
+        labels = vol.get("Labels", {})
+        if labels.get("nix-enter.cache") == "global":
+            vol_name = vol.get("Name", "")
+            all_managed = Podman.ps(filters=managed_filter)
+            if len(all_managed) == len(orphan_containers):
+                if vol_name and vol_name not in orphan_volumes:
+                    orphan_volumes.append(vol_name)
+                    global_cache_vol = vol_name
+                    output.warn("Global cache volume has no associated projects remaining")
+            break  # Only one global cache
+
+    if not orphans and not global_cache_vol:
         output.ok("No orphaned resources found")
         return
 
     print()
-    output.warn(f"Found orphaned resources from {len(orphans)} deleted project(s):")
-    print()
-    for pdir, pname in orphans.items():
-        print(f"  {output.RED}{pname}{output.NC} ({pdir})")
-    print()
+    if orphans:
+        output.warn(f"Found orphaned resources from {len(orphans)} deleted project(s):")
+        print()
+        for pdir, pname in orphans.items():
+            print(f"  {output.RED}{pname}{output.NC} ({pdir})")
+        print()
+    if global_cache_vol:
+        print(f"  Global cache: {global_cache_vol}")
+        print()
     print(f"  Containers: {len(orphan_containers)}")
     print(f"  Volumes:    {len(orphan_volumes)}")
     print(f"  Images:     {len(orphan_images)}")

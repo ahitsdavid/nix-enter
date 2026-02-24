@@ -90,6 +90,29 @@ def test_load_config_no_resources_keeps_defaults(tmp_path):
     assert cfg.pids_limit == 0
 
 
+def test_default_shared_cache():
+    cfg = Config()
+    assert cfg.shared_cache is True
+
+
+def test_load_config_shared_cache_false(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text('[container.cache]\nshared = false\n')
+    cfg = load_config(config_file)
+    assert cfg.shared_cache is False
+
+
+def test_load_config_no_cache_section_keeps_default(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text('[container]\nuser = "dev"\n')
+    cfg = load_config(config_file)
+    assert cfg.shared_cache is True
+
+
 def test_init_config_creates_file(tmp_path):
     config_path = tmp_path / ".nix-enter" / "config.toml"
     init_config(config_path)
