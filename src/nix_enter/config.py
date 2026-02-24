@@ -17,6 +17,12 @@ class Config:
     network: str = "host"
     # [container.mounts]
     extra_mounts: list[str] = field(default_factory=list)
+    # [container.forwarding]
+    forward_ssh_agent: bool = True
+    forward_gitconfig: bool = True
+    forward_claude_config: bool = True
+    forward_wayland: bool = True
+    forward_x11: bool = True
     # [logging]
     build_logs_keep: int = 5
     session_logs_keep: int = 10
@@ -39,6 +45,13 @@ network = "host"
 
 # [container.mounts]
 # extra = ["/data:/data:ro"]
+
+[container.forwarding]
+ssh_agent = true
+gitconfig = true
+claude_config = true
+wayland = true
+x11 = true
 
 [logging]
 build_logs_keep = 5
@@ -65,6 +78,7 @@ def load_config(config_path: Path) -> Config:
     container = data.get("container", {})
     security = container.get("security", {})
     mounts = container.get("mounts", {})
+    forwarding = container.get("forwarding", {})
     logging = data.get("logging", {})
 
     if "user" in container:
@@ -81,6 +95,16 @@ def load_config(config_path: Path) -> Config:
         cfg.network = security["network"]
     if "extra" in mounts:
         cfg.extra_mounts = mounts["extra"]
+    if "ssh_agent" in forwarding:
+        cfg.forward_ssh_agent = forwarding["ssh_agent"]
+    if "gitconfig" in forwarding:
+        cfg.forward_gitconfig = forwarding["gitconfig"]
+    if "claude_config" in forwarding:
+        cfg.forward_claude_config = forwarding["claude_config"]
+    if "wayland" in forwarding:
+        cfg.forward_wayland = forwarding["wayland"]
+    if "x11" in forwarding:
+        cfg.forward_x11 = forwarding["x11"]
     if "build_logs_keep" in logging:
         cfg.build_logs_keep = logging["build_logs_keep"]
     if "session_logs_keep" in logging:

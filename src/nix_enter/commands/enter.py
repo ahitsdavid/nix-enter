@@ -101,54 +101,59 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
         args.extend(["--volume", mount])
 
     # SSH agent
-    ssh_sock = os.environ.get("SSH_AUTH_SOCK", "")
-    if ssh_sock:
-        output.verbose(f"Forwarding SSH agent: {ssh_sock}")
-        args.extend([
-            "--volume", f"{ssh_sock}:/run/ssh-agent.sock:ro",
-            "--env", "SSH_AUTH_SOCK=/run/ssh-agent.sock",
-        ])
-    else:
-        output.warn("SSH_AUTH_SOCK not set -- SSH agent forwarding disabled")
+    if config.forward_ssh_agent:
+        ssh_sock = os.environ.get("SSH_AUTH_SOCK", "")
+        if ssh_sock:
+            output.verbose(f"Forwarding SSH agent: {ssh_sock}")
+            args.extend([
+                "--volume", f"{ssh_sock}:/run/ssh-agent.sock:ro",
+                "--env", "SSH_AUTH_SOCK=/run/ssh-agent.sock",
+            ])
+        else:
+            output.warn("SSH_AUTH_SOCK not set -- SSH agent forwarding disabled")
 
     # Git config — check both traditional and XDG locations
-    gitconfig = Path.home() / ".gitconfig"
-    gitconfig_xdg = Path.home() / ".config" / "git" / "config"
-    if gitconfig.exists():
-        output.verbose("Mounting ~/.gitconfig read-only")
-        # Resolve symlinks (home-manager links to /nix/store)
-        args.extend(["--volume", f"{gitconfig.resolve()}:/home/{config.container_user}/.gitconfig:ro"])
-    elif gitconfig_xdg.exists():
-        output.verbose("Mounting ~/.config/git/config read-only")
-        args.extend(["--volume", f"{gitconfig_xdg.resolve()}:/home/{config.container_user}/.config/git/config:ro"])
+    if config.forward_gitconfig:
+        gitconfig = Path.home() / ".gitconfig"
+        gitconfig_xdg = Path.home() / ".config" / "git" / "config"
+        if gitconfig.exists():
+            output.verbose("Mounting ~/.gitconfig read-only")
+            # Resolve symlinks (home-manager links to /nix/store)
+            args.extend(["--volume", f"{gitconfig.resolve()}:/home/{config.container_user}/.gitconfig:ro"])
+        elif gitconfig_xdg.exists():
+            output.verbose("Mounting ~/.config/git/config read-only")
+            args.extend(["--volume", f"{gitconfig_xdg.resolve()}:/home/{config.container_user}/.config/git/config:ro"])
 
     # Claude Code global config (~/.config/claude/)
-    claude_config = Path.home() / ".config" / "claude"
-    if claude_config.is_dir():
-        output.verbose("Mounting ~/.config/claude read-only")
-        args.extend(["--volume", f"{claude_config.resolve()}:/home/{config.container_user}/.config/claude:ro"])
+    if config.forward_claude_config:
+        claude_config = Path.home() / ".config" / "claude"
+        if claude_config.is_dir():
+            output.verbose("Mounting ~/.config/claude read-only")
+            args.extend(["--volume", f"{claude_config.resolve()}:/home/{config.container_user}/.config/claude:ro"])
 
     # Wayland
-    wayland = os.environ.get("WAYLAND_DISPLAY", "")
-    xdg_runtime = os.environ.get("XDG_RUNTIME_DIR", "")
-    if wayland and xdg_runtime:
-        sock = Path(xdg_runtime) / wayland
-        if sock.exists():
-            output.verbose(f"Forwarding Wayland display: {wayland}")
-            args.extend([
-                "--volume", f"{sock}:/tmp/{wayland}:rw",
-                "--env", f"WAYLAND_DISPLAY={wayland}",
-                "--env", "XDG_RUNTIME_DIR=/tmp",
-            ])
+    if config.forward_wayland:
+        wayland = os.environ.get("WAYLAND_DISPLAY", "")
+        xdg_runtime = os.environ.get("XDG_RUNTIME_DIR", "")
+        if wayland and xdg_runtime:
+            sock = Path(xdg_runtime) / wayland
+            if sock.exists():
+                output.verbose(f"Forwarding Wayland display: {wayland}")
+                args.extend([
+                    "--volume", f"{sock}:/tmp/{wayland}:rw",
+                    "--env", f"WAYLAND_DISPLAY={wayland}",
+                    "--env", "XDG_RUNTIME_DIR=/tmp",
+                ])
 
     # X11
-    display = os.environ.get("DISPLAY", "")
-    if display and Path("/tmp/.X11-unix").is_dir():
-        output.verbose(f"Forwarding X11 display: {display}")
-        args.extend([
-            "--volume", "/tmp/.X11-unix:/tmp/.X11-unix:ro",
-            "--env", f"DISPLAY={display}",
-        ])
+    if config.forward_x11:
+        display = os.environ.get("DISPLAY", "")
+        if display and Path("/tmp/.X11-unix").is_dir():
+            output.verbose(f"Forwarding X11 display: {display}")
+            args.extend([
+                "--volume", "/tmp/.X11-unix:/tmp/.X11-unix:ro",
+                "--env", f"DISPLAY={display}",
+            ])
 
     Podman.create(args, project.image_name)
     log_event(log_dir, f"CREATE container={project.container_name} image={project.image_name}")

@@ -39,6 +39,28 @@ def test_load_config_extra_mounts(tmp_path):
     assert cfg.extra_mounts == ["/data:/data:ro"]
 
 
+def test_default_forwarding():
+    cfg = Config()
+    assert cfg.forward_ssh_agent is True
+    assert cfg.forward_gitconfig is True
+    assert cfg.forward_claude_config is True
+    assert cfg.forward_wayland is True
+    assert cfg.forward_x11 is True
+
+
+def test_load_config_forwarding_override(tmp_path):
+    config_dir = tmp_path / ".nix-enter"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "config.toml"
+    config_file.write_text(
+        '[container.forwarding]\ngitconfig = false\nclaude_config = false\n'
+    )
+    cfg = load_config(config_file)
+    assert cfg.forward_gitconfig is False
+    assert cfg.forward_claude_config is False
+    assert cfg.forward_ssh_agent is True  # default preserved
+
+
 def test_init_config_creates_file(tmp_path):
     config_path = tmp_path / ".nix-enter" / "config.toml"
     init_config(config_path)
