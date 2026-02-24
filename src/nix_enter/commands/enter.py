@@ -11,6 +11,43 @@ from nix_enter.containerfile import generate_containerfile
 from nix_enter import output
 
 
+def _mount_patched_plugins(
+    plugins_dir: Path,
+    nixenter_dir: Path,
+    host_home: str,
+    container_home: str,
+    container_claude: str,
+    args: list[str],
+) -> None:
+    """Mount plugins with patched JSON files that replace host paths with container paths."""
+    patch_dir = nixenter_dir / "plugin-patches"
+    patch_dir.mkdir(parents=True, exist_ok=True)
+
+    # Patch JSON files that contain hardcoded home paths
+    for fname in ["installed_plugins.json", "known_marketplaces.json"]:
+        src = plugins_dir / fname
+        if src.exists():
+            patched = src.read_text().replace(host_home, container_home)
+            dst = patch_dir / fname
+            dst.write_text(patched)
+            args.extend(["--volume", f"{dst}:{container_claude}/plugins/{fname}:ro"])
+
+    # Mount the rest (cache, marketplaces) directly — no path issues
+    for dname in ["cache", "marketplaces"]:
+        dpath = plugins_dir / dname
+        if dpath.is_dir():
+            args.extend(["--volume", f"{dpath.resolve()}:{container_claude}/plugins/{dname}:ro"])
+
+    # Mount remaining non-patched files
+    for fpath in plugins_dir.iterdir():
+        if fpath.name in ["installed_plugins.json", "known_marketplaces.json", "cache", "marketplaces"]:
+            continue
+        if fpath.is_file():
+            args.extend(["--volume", f"{fpath.resolve()}:{container_claude}/plugins/{fpath.name}:ro"])
+
+    output.verbose("Forwarding ~/.claude/plugins/ with patched paths")
+
+
 def do_build(project: Project, config: Config, log_dir: Path) -> None:
     containerfile_path = project.dir / config.containerfile
 
@@ -140,13 +177,21 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
                 if fpath.exists():
                     output.verbose(f"Forwarding ~/.claude/{fname} read-only")
                     args.extend(["--volume", f"{fpath.resolve()}:{container_claude}/{fname}:ro"])
-            # Mount directories (plugins, skills)
-            claude_dirs = ["plugins", "skills"]
-            for dname in claude_dirs:
-                dpath = claude_dir / dname
-                if dpath.is_dir():
-                    output.verbose(f"Forwarding ~/.claude/{dname}/ read-only")
-                    args.extend(["--volume", f"{dpath.resolve()}:{container_claude}/{dname}:ro"])
+            # Mount skills directory
+            skills_dir = claude_dir / "skills"
+            if skills_dir.is_dir():
+                output.verbose("Forwarding ~/.claude/skills/ read-only")
+                args.extend(["--volume", f"{skills_dir.resolve()}:{container_claude}/skills:ro"])
+            # Mount plugins — patch path references if username differs
+            plugins_dir = claude_dir / "plugins"
+            if plugins_dir.is_dir():
+                host_home = str(Path.home())
+                container_home = f"/home/{config.container_user}"
+                if host_home != container_home:
+                    _mount_patched_plugins(plugins_dir, project.nixenter_dir, host_home, container_home, container_claude, args)
+                else:
+                    output.verbose("Forwarding ~/.claude/plugins/ read-only")
+                    args.extend(["--volume", f"{plugins_dir.resolve()}:{container_claude}/plugins:ro"])
         else:
             output.warn("No ~/.claude found -- Claude Code settings won't be forwarded")
 

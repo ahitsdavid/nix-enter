@@ -62,7 +62,7 @@ def init_config(config_path: Path) -> None:
     config_path.write_text(DEFAULT_CONFIG)
     gitignore = config_path.parent / ".gitignore"
     if not gitignore.exists():
-        gitignore.write_text("logs/\n")
+        gitignore.write_text("logs/\nplugin-patches/\n")
 
 
 def load_config(config_path: Path) -> Config:
