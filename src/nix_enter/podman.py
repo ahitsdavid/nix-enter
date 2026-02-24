@@ -143,3 +143,13 @@ class Podman:
     @staticmethod
     def create(args: list[str], image: str) -> None:
         Podman._run(["create", *args, image])
+
+    @staticmethod
+    def run_container(args: list[str], image: str, command: str) -> int:
+        """Run a container with `podman run` and return the exit code."""
+        import shlex
+        result = subprocess.run(
+            ["podman", "run", *args, image, *shlex.split(command)],
+            check=False,
+        )
+        return result.returncode

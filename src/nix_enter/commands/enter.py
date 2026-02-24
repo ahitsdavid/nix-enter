@@ -1,6 +1,7 @@
 """Default command: build/create/attach flow."""
 
 import os
+import secrets
 from pathlib import Path
 
 from nix_enter.project import Project
@@ -48,57 +49,9 @@ def _mount_patched_plugins(
     output.verbose("Forwarding ~/.claude/plugins/ with patched paths")
 
 
-def do_build(project: Project, config: Config, log_dir: Path) -> None:
-    containerfile_path = project.dir / config.containerfile
-
-    if not containerfile_path.exists():
-        content = generate_containerfile(
-            project.dir,
-            user=config.container_user,
-            uid=os.getuid(),
-            containerfile_name=config.containerfile,
-        )
-        if content is not None:
-            output.info(f"Generating default {config.containerfile}")
-            containerfile_path.write_text(content)
-            output.ok(f"Generated {config.containerfile}")
-
-    blog = build_log_path(log_dir)
-    log_event(log_dir, f"BUILD start image={project.image_name}")
-    output.info(f"Building image: {project.image_name}")
-    output.info(f"Build log: {blog}")
-
-    result = Podman.build(
-        tag=project.image_name,
-        containerfile=containerfile_path,
-        context=project.dir,
-        build_args={"USER_NAME": config.container_user, "USER_UID": str(os.getuid())},
-        labels=project.labels,
-        log_file=blog,
-    )
-
-    if result.returncode != 0:
-        log_event(log_dir, f"BUILD failed rc={result.returncode} image={project.image_name}")
-        output.die(f"Image build failed (see {blog})")
-
-    log_event(log_dir, f"BUILD ok image={project.image_name}")
-    rotate_logs(log_dir, "build-", keep=config.build_logs_keep)
-    output.ok(f"Image built: {project.image_name}")
-
-
-def do_create(project: Project, config: Config, log_dir: Path) -> None:
-    output.info(f"Creating container: {project.container_name}")
-
-    # Ensure volumes
-    for vol in [project.volume_home, project.volume_claude]:
-        if not Podman.volume_exists(vol):
-            output.verbose(f"Creating volume: {vol}")
-            Podman.volume_create(vol, labels=project.labels)
-
-    args = [
-        "--name", project.container_name,
-        "--hostname", project.name,
-    ]
+def _build_container_args(project: Project, config: Config) -> list[str]:
+    """Build the common podman container arguments shared by create and spawn."""
+    args: list[str] = []
 
     # Labels
     for key, val in project.labels.items():
@@ -109,7 +62,6 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
         "--userns=keep-id",
         f"--cap-drop={config.cap_drop}",
         "--network", config.network,
-        "--interactive", "--tty",
     ])
     if config.no_new_privileges:
         args.extend(["--security-opt", "no-new-privileges"])
@@ -127,12 +79,6 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
     args.extend([
         "--volume", f"{project.dir}:/workspace:rw",
         "--workdir", "/workspace",
-    ])
-
-    # Persistent volumes
-    args.extend([
-        "--volume", f"{project.volume_home}:/home/{config.container_user}:rw",
-        "--volume", f"{project.volume_claude}:/home/{config.container_user}/.claude:rw",
     ])
 
     # Extra mounts from config
@@ -157,7 +103,6 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
         gitconfig_xdg = Path.home() / ".config" / "git" / "config"
         if gitconfig.exists():
             output.verbose("Mounting ~/.gitconfig read-only")
-            # Resolve symlinks (home-manager links to /nix/store)
             args.extend(["--volume", f"{gitconfig.resolve()}:/home/{config.container_user}/.gitconfig:ro"])
         elif gitconfig_xdg.exists():
             output.verbose("Mounting ~/.config/git/config read-only")
@@ -219,6 +164,71 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
                 "--env", f"DISPLAY={display}",
             ])
 
+    return args
+
+
+def do_build(project: Project, config: Config, log_dir: Path) -> None:
+    containerfile_path = project.dir / config.containerfile
+
+    if not containerfile_path.exists():
+        content = generate_containerfile(
+            project.dir,
+            user=config.container_user,
+            uid=os.getuid(),
+            containerfile_name=config.containerfile,
+        )
+        if content is not None:
+            output.info(f"Generating default {config.containerfile}")
+            containerfile_path.write_text(content)
+            output.ok(f"Generated {config.containerfile}")
+
+    blog = build_log_path(log_dir)
+    log_event(log_dir, f"BUILD start image={project.image_name}")
+    output.info(f"Building image: {project.image_name}")
+    output.info(f"Build log: {blog}")
+
+    result = Podman.build(
+        tag=project.image_name,
+        containerfile=containerfile_path,
+        context=project.dir,
+        build_args={"USER_NAME": config.container_user, "USER_UID": str(os.getuid())},
+        labels=project.labels,
+        log_file=blog,
+    )
+
+    if result.returncode != 0:
+        log_event(log_dir, f"BUILD failed rc={result.returncode} image={project.image_name}")
+        output.die(f"Image build failed (see {blog})")
+
+    log_event(log_dir, f"BUILD ok image={project.image_name}")
+    rotate_logs(log_dir, "build-", keep=config.build_logs_keep)
+    output.ok(f"Image built: {project.image_name}")
+
+
+def do_create(project: Project, config: Config, log_dir: Path) -> None:
+    output.info(f"Creating container: {project.container_name}")
+
+    # Ensure volumes
+    for vol in [project.volume_home, project.volume_claude]:
+        if not Podman.volume_exists(vol):
+            output.verbose(f"Creating volume: {vol}")
+            Podman.volume_create(vol, labels=project.labels)
+
+    args = [
+        "--name", project.container_name,
+        "--hostname", project.name,
+        "--interactive", "--tty",
+    ]
+
+    # Shared container args (labels, security, tmpfs, forwarding)
+    args.extend(_build_container_args(project, config))
+
+    # Persistent volumes (named, for interactive sessions)
+    args.extend([
+        "--volume", f"{project.volume_home}:/home/{config.container_user}:rw",
+        "--volume", f"{project.volume_claude}:/home/{config.container_user}/.claude:rw",
+    ])
+
     Podman.create(args, project.image_name)
     log_event(log_dir, f"CREATE container={project.container_name} image={project.image_name}")
     output.ok(f"Container created: {project.container_name}")
@@ -229,6 +239,47 @@ def do_attach(project: Project, config: Config, log_dir: Path) -> None:
     log_event(log_dir, f"ATTACH container={project.container_name}")
 
     os.execvp("podman", ["podman", "start", "-ai", project.container_name])
+
+
+def do_spawn(project: Project, config: Config, log_dir: Path, command: str) -> int:
+    """Run a command in an ephemeral container and return the exit code."""
+    if not command.strip():
+        output.die("--spawn requires a non-empty command")
+
+    # Ensure image exists
+    if not Podman.image_exists(project.image_name):
+        do_build(project, config, log_dir)
+
+    # Ensure Claude volume exists (session data persists across spawns)
+    if not Podman.volume_exists(project.volume_claude):
+        output.verbose(f"Creating volume: {project.volume_claude}")
+        Podman.volume_create(project.volume_claude, labels=project.labels)
+
+    suffix = secrets.token_hex(2)
+    container_name = f"{project.container_name}-spawn-{suffix}"
+
+    args = [
+        "--name", container_name,
+        "--hostname", project.name,
+        "--rm",
+        "--interactive",
+    ]
+
+    # Shared container args (labels, security, tmpfs, forwarding)
+    args.extend(_build_container_args(project, config))
+
+    # Claude volume only (no named home volume — ephemeral home)
+    args.extend([
+        "--volume", f"{project.volume_claude}:/home/{config.container_user}/.claude:rw",
+    ])
+
+    log_event(log_dir, f"SPAWN start container={container_name} cmd={command}")
+    output.info(f"Spawning: {command}")
+
+    rc = Podman.run_container(args, project.image_name, command)
+
+    log_event(log_dir, f"SPAWN done container={container_name} rc={rc}")
+    return rc
 
 
 def run(

@@ -1,6 +1,7 @@
 """CLI entry point for nix-enter."""
 
 import argparse
+import sys
 
 from nix_enter.project import Project
 from nix_enter.config import load_config, init_config
@@ -21,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--clean", action="store_true", help="Remove container + home volume")
     group.add_argument("--list", action="store_true", help="Show all nix-enter projects system-wide")
     group.add_argument("--purge", action="store_true", help="Remove orphaned resources")
+    group.add_argument("--spawn", metavar="CMD", help="Run command headlessly and exit")
     parser.add_argument("--all", action="store_true", help="With --clean: also remove claude volume")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     return parser
@@ -76,6 +78,11 @@ def main() -> None:
         from nix_enter.commands import clean
         clean.run(project, log_dir, clean_all=args.all)
         return
+
+    if args.spawn:
+        from nix_enter.commands import enter
+        rc = enter.do_spawn(project, config, log_dir, command=args.spawn)
+        sys.exit(rc)
 
     # Default: enter (with optional --rebuild or --force)
     from nix_enter.commands import enter
