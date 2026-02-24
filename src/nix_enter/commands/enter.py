@@ -140,6 +140,13 @@ def do_create(project: Project, config: Config, log_dir: Path) -> None:
                 if fpath.exists():
                     output.verbose(f"Forwarding ~/.claude/{fname} read-only")
                     args.extend(["--volume", f"{fpath.resolve()}:{container_claude}/{fname}:ro"])
+            # Mount directories (plugins, skills)
+            claude_dirs = ["plugins", "skills"]
+            for dname in claude_dirs:
+                dpath = claude_dir / dname
+                if dpath.is_dir():
+                    output.verbose(f"Forwarding ~/.claude/{dname}/ read-only")
+                    args.extend(["--volume", f"{dpath.resolve()}:{container_claude}/{dname}:ro"])
         else:
             output.warn("No ~/.claude found -- Claude Code settings won't be forwarded")
 
